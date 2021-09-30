@@ -1,0 +1,11 @@
+{
+    "name": "rkaiser0324/export-asana",
+    "description": "A PHP CLI script to export complete tasks and comments using the Asana API",
+    "type": "library",
+    "keywords": ["asana", "client"],
+    "homepage": "https://github.com/rkaiser0324/export-asana",
+    "license": "MIT",
+    "require": {
+        "asana/asana": "0.10.5"
+    }
+}
