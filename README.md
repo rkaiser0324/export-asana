@@ -1,8 +1,8 @@
 # export-asana
 
-This is a PHP CLI script, inspired by [this forum post](https://forum.asana.com/t/exporting-projects-including-comments/53796/2), which uses the Asana REST API to export to HTML, all the Tasks and Comments in a given Project in a Workspace.
+Per [this forum post](https://forum.asana.com/t/exporting-projects-including-comments/53796/2), Asana does not offer a means to natively export a project.  This PHP CLI script  uses the Asana REST API to export to HTML, all the Tasks, Comments, and links to Attachments in a given Project in a Workspace.  It also includes any Subtasks in the hierarchy.  
 
-
+This script has been tested with PHP 7.3.
 
 ## Setup
 
@@ -25,3 +25,8 @@ E.g.,
 ```
 php export.php "My Workspace" "My Project" output.html
 ```
+
+## Notes
+
+- The script skips any Task that has been added to multiple Projects, but this can be easily changed if that restriction is not applicable to your use case.
+- The output HTML uses [Bootstrap 5](https://getbootstrap.com/) for minimal styling.

@@ -13,8 +13,6 @@ require dirname(__FILE__) . '/vendor/autoload.php';
 
 use Asana\Client;
 
-// Define ASANA_ACCESS_TOKEN as a Personal Access Token found in Asana Account Settings
-
 if (empty($argv[1])) {
     throw new exception("Please specify a workspace name");
 }
@@ -60,9 +58,6 @@ foreach ($me->workspaces as $w) {
 
                 $i = 0;
                 foreach ($client->tasks->findAll(array('project' => $project_id), array('page_size' => 100)) as $t) {
-                    // if ($t->gid != '459300356162719') {
-                    //     continue;
-                    // }
 
                     $result = get_task($client, $t->gid);
 
@@ -71,8 +66,6 @@ foreach ($me->workspaces as $w) {
                     }
 
                     printf("%s - %s - %s\n", ++$i, $result['status'], $result['task']['name']);
-
-                    //if ($i>10) break;
                 }
             }
         }
