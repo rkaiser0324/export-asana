@@ -9,76 +9,88 @@
  *
  */
 
-require dirname(__FILE__) . '/vendor/autoload.php';
-
 use Asana\Client;
 
-if (empty($argv[1])) {
-    throw new exception("Please specify a workspace name");
-}
-$workspace_name = $argv[1];
+try {
+    require dirname(__FILE__) . '/vendor/autoload.php';
 
-if (empty($argv[2])) {
-    throw new exception("Please specify a project name");
-}
-$project_name = $argv[2];
+    if (empty($argv[1])) {
+        throw new exception("Please specify a workspace name");
+    }
+    $workspace_name = $argv[1];
 
-if (empty($argv[3])) {
-    throw new exception("Please specify an output filename");
-}
-$filename = $argv[3];
+    if (empty($argv[2])) {
+        throw new exception("Please specify a project name");
+    }
+    $project_name = $argv[2];
 
-if (!$fp = fopen($filename, 'w')) {
-    throw new exception("Cannot open $filename for writing");
-}
+    if (empty($argv[3])) {
+        throw new exception("Please specify an output filename");
+    }
+    $filename = $argv[3];
 
-require dirname(__FILE__) . '/config.php';
+    if (!$fp = fopen($filename, 'w')) {
+        throw new exception("Cannot open $filename for writing");
+    }
 
-if (!defined('ASANA_ACCESS_TOKEN')) {
-    throw new exception("Please define ASANA_ACCESS_TOKEN in ./config.php");
-}
+    require dirname(__FILE__) . '/config.php';
 
-// create a $client->with a Personal Access Token
-$client = Asana\Client::accessToken(ASANA_ACCESS_TOKEN, array('headers' => array('asana-disable' => 'new_user_task_lists')));
+    if (!defined('ASANA_ACCESS_TOKEN')) {
+        throw new exception("Please define ASANA_ACCESS_TOKEN in ./config.php");
+    }
 
-echo "Getting tasks for project \"$project_name\" in workspace \"$workspace_name\"...\n";
+    // create a $client->with a Personal Access Token
+    $client = Asana\Client::accessToken(ASANA_ACCESS_TOKEN, array('headers' => array('asana-disable' => 'new_user_task_lists')));
 
-$me = $client->users->me();
+    echo "Getting tasks for project \"$project_name\" in workspace \"$workspace_name\"...\n";
 
-$project_id = null;
-$tasks = [];
+    $me = $client->users->me();
 
-foreach ($me->workspaces as $w) {
-    if ($w->name == $workspace_name) {
-        $projects = $client->projects->findByWorkspace($w->gid, null, array('iterator_type' => false, 'page_size' => null))->data;
+    $project_id = null;
+    $tasks = [];
+    $found_workspace = false;
+    $found_project = false;
+    foreach ($me->workspaces as $w) {
+        printf("Found workspace \"%s\"...\n", $w->name);
+        if ($w->name == $workspace_name) {
+            $found_workspace = true;
+            $projects = $client->projects->findByWorkspace($w->gid, null, array('iterator_type' => false, 'page_size' => null))->data;
 
-        foreach ($projects as $p) {
-            if ($p->name == $project_name) {
-                $project_id = $p->gid;
+            foreach ($projects as $p) {
+                printf("Found project \"%s\"...\n", $p->name);
+                if ($p->name == $project_name) {
+                    $found_project = true;
+                    $project_id = $p->gid;
 
-                $i = 0;
-                foreach ($client->tasks->findAll(array('project' => $project_id), array('page_size' => 100)) as $t) {
+                    $i = 0;
+                    foreach ($client->tasks->findAll(array('project' => $project_id), array('page_size' => 100)) as $t) {
+                        $result = get_task($client, $t->gid);
 
-                    $result = get_task($client, $t->gid);
+                        if ($result['status'] == 'OK') {
+                            $tasks[] = $result['task'];
+                        }
 
-                    if ($result['status'] == 'OK') {
-                        $tasks[] = $result['task'];
+                        printf("  Task %s - %s - %s\n", ++$i, $result['status'], $result['task']['name']);
                     }
-
-                    printf("%s - %s - %s\n", ++$i, $result['status'], $result['task']['name']);
                 }
             }
+            break;
         }
-        break;
     }
-}
+    if (!$found_workspace) {
+        throw new exception("Could not find workspace \"$workspace_name\"");
+    }
 
-// Sort tasks by created_at
-usort($tasks, function ($a, $b) {
-    return ($a['created_at'] < $b['created_at']) ? -1 : 1;
-});
+    if (!$found_project) {
+        throw new exception("Could not find project \"$project_name\" in workspace \"$workspace_name\"");
+    }
 
-fprintf($fp, '<!doctype html>
+    // Sort tasks by created_at
+    usort($tasks, function ($a, $b) {
+        return ($a['created_at'] < $b['created_at']) ? -1 : 1;
+    });
+
+    fprintf($fp, '<!doctype html>
 <html lang="en">
   <head>
     <!-- Required meta tags -->
@@ -97,21 +109,23 @@ fprintf($fp, '<!doctype html>
   </head>
     <body>
         <div class="container">
-        <h1>Asana Tasks - %s</h1>
-        ', $project_name, $project_name);
+        <h1>Asana Tasks - %s (%s)</h1>
+        ', $project_name, $project_name, count($tasks));
 
-foreach ($tasks as $task) {
-    print_task($fp, $project_id, $task);
-}
+    foreach ($tasks as $task) {
+        print_task($fp, $project_id, $task);
+    }
 
-fprintf($fp, "
+    fprintf($fp, "
         </div><!-- end container -->
     </body>
 </html>");
-fclose($fp);
+    fclose($fp);
 
-echo "\nOutput written to $filename.\n";
-
+    echo "\nOutput written to $filename.\n";
+} catch (exception $ex) {
+    printf("\033[01;31m \n*** ERROR: %s\n\n\033[0m", $ex->getMessage());
+}
 function format_timestamp($str)
 {
     return strftime('%m/%d/%y %r %Z', strtotime($str));
