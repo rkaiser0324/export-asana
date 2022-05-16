@@ -1,11 +1,11 @@
 <?php
 /**
- * Use the Asana API to export all tasks and comments for a given project.
+ * Use the Asana API to export the tasks and comments for a given project, optionally filtered to those modified or completed since a given date.
  *
- * export.php <workspacename> <projectname> <outputfilename>
+ * php export.php --workspace=<workspacename> --project=<projectname> --output=<outputfilename> [--modified_since=YYYY-MM-DD] [--completed_since=YYYY-MM-DD]
  *
  * E.g.,
- * export.php "My Workspace" "My Project" output.html
+ * php export.php --workspace="My Workspace" --project="My Project" --modified_since=2022-01-15 --output=output.html
  *
  */
 
@@ -14,20 +14,22 @@ use Asana\Client;
 try {
     require dirname(__FILE__) . '/vendor/autoload.php';
 
-    if (empty($argv[1])) {
+    $options = getopt("w::p::m::c::o::", ["workspace:", "project:", "modified_since:", "completed_since:", "output:"]);
+
+    if (empty($options['workspace'])) {
         throw new exception("Please specify a workspace name");
     }
-    $workspace_name = $argv[1];
+    $workspace_name = $options['workspace'];
 
-    if (empty($argv[2])) {
+    if (empty($options['project'])) {
         throw new exception("Please specify a project name");
     }
-    $project_name = $argv[2];
+    $project_name = $options['project'];
 
-    if (empty($argv[3])) {
+    if (empty($options['output'])) {
         throw new exception("Please specify an output filename");
     }
-    $filename = $argv[3];
+    $filename = $options['output'];
 
     if (!$fp = fopen($filename, 'w')) {
         throw new exception("Cannot open $filename for writing");
@@ -42,7 +44,7 @@ try {
     // create a $client->with a Personal Access Token
     $client = Asana\Client::accessToken(ASANA_ACCESS_TOKEN, array('headers' => array('asana-disable' => 'new_user_task_lists')));
 
-    echo "Getting tasks for project \"$project_name\" in workspace \"$workspace_name\"...\n";
+    printf("Getting tasks for project \"%s\" in workspace \"%s\"...\n", $project_name, $workspace_name);
 
     $me = $client->users->me();
 
@@ -63,7 +65,16 @@ try {
                     $project_id = $p->gid;
 
                     $i = 0;
-                    foreach ($client->tasks->findAll(array('project' => $project_id), array('page_size' => 100)) as $t) {
+                    $filter = [
+                        'project' => $project_id
+                    ];
+                    if (!empty($options['completed_since'])) {
+                        $filter['completed_since'] = $options['completed_since'];
+                    }
+                    if (!empty($options['modified_since'])) {
+                        $filter['modified_since'] = $options['modified_since'];
+                    }
+                    foreach ($client->tasks->findAll($filter, array('page_size' => 100)) as $t) {
                         $result = get_task($client, $t->gid);
 
                         if ($result['status'] == 'OK') {
