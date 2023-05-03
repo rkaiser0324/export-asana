@@ -7,7 +7,7 @@ This script has been tested with PHP 7.3 and PHP 8.0.
 ## Setup
 
 1. `composer install`
-1. Get a Personal Access Token per [these instructions](https://developers.asana.com/docs/authentication-quick-start).
+1. Get a Personal Access Token per [these instructions](https://developers.asana.com/docs/personal-access-token).
 1.  Create `./config.php` as
     ```php
     <?php
